@@ -109,10 +109,12 @@ esac
 
 ### description
 
-echo "Enter a description for your theme, you can use Markdown formatting (Press Ctrl+D to save):"
+echo "Enter a description for your theme (Press Ctrl+D to save):"
 
 # Read multiple lines of input until EOF (Ctrl+D)
-cat >"$THEMENAME/README.md"
+cat >"$THEMENAME/pkg-description/pkg-description.en"
+
+cat "$THEMENAME/pkg-description/pkg-description.en" >>"$THEMENAME/README.md"
 
 cat >>"$THEMENAME/README.md" <<EOF
 
