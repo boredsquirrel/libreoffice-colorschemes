@@ -10,9 +10,33 @@
 
 set -eou pipefail
 
+### Check if all tools are available
+
+available() { command -v $1 >/dev/null; }
+require() {
+  local MISSING=''
+  for TOOL in $*; do
+    if ! available $TOOL; then
+      MISSING="$MISSING $TOOL"
+    fi
+  done
+
+  echo $MISSING
+}
+
+NEEDS=$(require curl awk grep sed xmllint cat read)
+if [ -n "$NEEDS" ]; then
+  status "ERROR: The following tools are required but missing:"
+  for NEED in $NEEDS; do
+    echo "  - $NEED"
+  done
+  exit 1
+fi
+
 ### Set variable
 # THEMENAME=ABC
 # AUTHOR=ABC
+# WEBSITE=ABC
 
 read -p "Creator name: " AUTHOR
 read -p "Theme name: " THEMENAME

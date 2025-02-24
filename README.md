@@ -8,11 +8,9 @@ Create one under "Menubar" -> "Extras" -> "Options" -> "Look"
 
 ## How to use
 
-Only tested on Linux!
+Only tested on Linux and with xmllint.
 
-Requires following core tools: `awk curl sed read cat` ...
-
-Optional: `xmllint` for readable config
+Requires following core tools: `xmllint awk curl sed` and more core utilities
 
 1. Clone this repo or [download as ZIP archive](https://github.com/boredsquirrel/libreoffice-colorschemes/archive/refs/heads/main.zip)
 2. Go to the directory
