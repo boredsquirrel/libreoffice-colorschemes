@@ -22,7 +22,7 @@ DATE=$(date +"%Y")
 
 ### Create theme dir
 
-cp -r THEME "$THEMENAME"
+cp -r TEMPLATE "$THEMENAME"
 
 ### Backup file
 
