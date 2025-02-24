@@ -1,0 +1,145 @@
+#!/bin/bash
+#
+# Extract a Libreoffice Color Scheme from the
+# registrymodifications.xcu file
+# and convert it into a theme addon
+#
+# NOTE
+# Only works if you have a single custom theme
+#
+
+set -eou pipefail
+
+### Set variable
+# THEMENAME=ABC
+# AUTHOR=ABC
+
+read -p "Creator name: " AUTHOR
+read -p "Theme name: " THEMENAME
+read -p "Website / Git repo: " WEBSITE
+
+DATE=$(date +"%Y")
+
+### Create theme dir
+
+cp -r THEME "$THEMENAME"
+
+### Backup file
+
+cp ~/.var/app/org.libreoffice.LibreOffice/config/libreoffice/4/user/registrymodifications.xcu ./registrymods-unformatted.xcu
+
+### Format file
+
+xmllint --format registrymods-unformatted.xcu >registrymods.xcu && rm -f registrymods-unformatted.xcu
+
+### Extract theme part
+
+awk '/<item oor:path="\/org.openoffice.Office.UI\/ColorScheme\/ColorSchemes">/,/<\/item>/' registrymods.xcu >colorscheme.xcu
+
+### Change lines
+sed -i '/item/d' colorscheme.xcu
+
+sed -i '1i\
+<?xml version="1.0" encoding="UTF-8"?>\
+<!DOCTYPE oor:component-data SYSTEM "../../../../component-update.dtd">\
+<oor:component-data xmlns:oor="http://openoffice.org/2001/registry"\
+  xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\
+  xmlns:install="http://openoffice.org/2004/installation" oor:name="UI"\
+  oor:package="org.openoffice.Office">\
+  <node oor:name="ColorScheme">\
+    <node oor:name="ColorSchemes">' colorscheme.xcu
+
+cat >>colorscheme.xcu <<EOF
+    <prop oor:name="CurrentColorScheme">
+      <value>$THEMENAME</value>
+    </prop>
+  </node>
+</oor:component-data>
+EOF
+
+### Format again
+
+xmllint --format colorscheme.xcu >"$THEMEDIR/Theme.xcu" && rm -f colorscheme.xcu
+
+### Set author, name, date
+
+[ -n "$AUTHOR" ] && find "$THEMEDIR" -type f -exec sed -i 's/AUTHOR/\$AUTHOR/g' {} +
+[ -n "$THEMENAME" ] && find "$THEMEDIR" -type f -exec sed -i 's/THEMENAME/\$THEMENAME/g' {} +
+[ -n "$DATE" ] && find "$THEMEDIR" -type f -exec sed -i 's/DATE/\$DATE/g' {} +
+[ -n "$WEBSITE" ] && find "$THEMEDIR" -type f -exec sed -i 's/WEBSITE/\$WEBSITE/g' {} +
+
+### Set License
+
+fallback-license() {
+  cp LICENSE "$THEMENAME/LICENSE"
+  echo "Download failed, using MPL 2.0"
+}
+
+cat <<EOF
+Which license do you want to use?
+
+  1: MIT
+  2: Mozilla Public License 2.0
+  3: WTFPL - Do What the Fuck You Want to Public License
+
+Enter anything else to use a default one.
+
+EOF
+
+read -p "Enter the number of your choice: " choice
+
+case $choice in
+1)
+  curl -o "$THEMENAME/LICENSE" https://mit-license.org/license.txt || fallback-license
+  echo "MIT License set."
+  ;;
+2)
+  curl -o "$THEMENAME/LICENSE" https://www.mozilla.org/media/MPL/2.0/index.f75d2927d3c1.txt || fallback-license
+  echo "MPL 2.0 License set."
+  ;;
+3)
+  curl -o "$THEMENAME/LICENSE" http://www.wtfpl.net/txt/copying/ || fallback-license
+  echo "WTFPL License set."
+  ;;
+*)
+  echo "Using default License."
+  cp LICENSE "$THEMENAME/LICENSE"
+  ;;
+esac
+
+### description
+
+echo "Enter a description for your theme, you can use Markdown formatting (Press Ctrl+D to save):"
+
+# Read multiple lines of input until EOF (Ctrl+D)
+cat >"$THEMENAME/README.md"
+
+cat >>"$THEMENAME/README.md" <<EOF
+
+## Gallery
+
+![Theme Writer](assets/theme-writer.jpg)
+
+
+![Theme Calc](assets/theme-calc.jpg)
+
+
+![Options Dialog](assets/theme-options-dialog.jpg)
+EOF
+
+cat <<EOF
+Description set.
+
+Now replace the screenshots in the "assets" folder with your own and set a logo under "logo.png".
+
+Compress the folder "$THEMENAME" as "$THEMENAME.zip".
+
+Replace .zip with .oxt
+
+And your extension is ready!
+
+EOF
+
+sleep 5
+
+xdg-open $THEMENAME

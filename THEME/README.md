@@ -1,0 +1,2 @@
+# THEMENAME Theme for LibreOffice
+
