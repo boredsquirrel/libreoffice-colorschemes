@@ -88,9 +88,9 @@ xmllint --format colorscheme.xcu >"$THEMENAME/Theme.xcu" && rm -f colorscheme.xc
 ### Set author, name, date
 
 [ -n "$AUTHOR" ] && find "$THEMENAME" -type f -exec sed -i 's/AUTHOR/\$AUTHOR/g' {} +
-[ -n "$THEMENAME" ] && find "$THEMEDIR" -type f -exec sed -i 's/THEMENAME/\$THEMENAME/g' {} +
-[ -n "$DATE" ] && find "$THEMEDIR" -type f -exec sed -i 's/DATE/\$DATE/g' {} +
-[ -n "$WEBSITE" ] && find "$THEMEDIR" -type f -exec sed -i 's/WEBSITE/\$WEBSITE/g' {} +
+[ -n "$THEMENAME" ] && find "$THEMENAME" -type f -exec sed -i 's/THEMENAME/\$THEMENAME/g' {} +
+[ -n "$DATE" ] && find "$THEMENAME" -type f -exec sed -i 's/DATE/\$DATE/g' {} +
+[ -n "$WEBSITE" ] && find "$THEMENAME" -type f -exec sed -i 's/WEBSITE/\$WEBSITE/g' {} +
 
 ### Set License
 
