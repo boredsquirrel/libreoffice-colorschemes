@@ -33,6 +33,49 @@ if [ -n "$NEEDS" ]; then
   exit 1
 fi
 
+### Check if working directory is the git repo
+WORKDIR="$PWD"
+
+while true; do
+
+  if [ -f "$WORKDIR/gentheme" ]; then
+    break # Exit the loop if the file is found
+
+  else
+    echo "ERROR: You are not in the directory of the git repo."
+    echo "Instead, you can enter the directory where the git repo is manually:"
+    read -p "Directory of the git repo: " WORKDIR
+
+    if [ -n "$WORKDIR" ]; then
+      echo "Alternative directory set: $WORKDIR"
+      if [ ! -f "$WORKDIR/gentheme" ]; then
+        echo "Error: Wrong directory specified."
+      fi
+    else
+      echo "No alternative directory set. Exiting script"
+    fi
+
+  fi
+done
+
+### Determine version of libreoffice
+
+if flatpak info org.libreoffice.LibreOffice &> /dev/null; then
+  # flatpak is used
+  CONFDIR="$HOME/.var/app/org.libreoffice.LibreOffice/config/libreoffice/4/user"
+
+elif if snap list | grep -q libreoffice &> /dev/null; then
+  # snap is used
+  CONFDIR="$HOME/snap/libreoffice/current/.config/libreoffice/4/user"
+
+elif command -v libreoffice &> /dev/null; then
+  # native version is used
+  CONFDIR="$HOME/.config/libreoffice/4/user"
+
+else
+  echo "ERROR: LibreOffice config folder can not be found." && exit
+fi
+
 ### Set variable
 # THEMENAME=ABC
 # AUTHOR=ABC
@@ -48,20 +91,51 @@ DATE=$(date +"%Y")
 
 cp -r TEMPLATE "$THEMENAME"
 
-### Backup file
+### Check if there is a theme from an earlier extraction
 
-cp ~/.var/app/org.libreoffice.LibreOffice/config/libreoffice/4/user/registrymodifications.xcu ./registrymods-unformatted.xcu
+if ls "$WORKDIR"/colorscheme*.xcu 1> /dev/null 2>&1; then
+  # colorscheme already exists
+  # renaming to "raw" for further processing
+  find "$WORKDIR" -name 'colorscheme*.xcu' -exec mv {} "$WORKDIR/colorscheme-raw.xcu" \; -quit
 
-### Format file
+else
+  echo "Copying the config file."
 
-xmllint --format registrymods-unformatted.xcu >registrymods.xcu && rm -f registrymods-unformatted.xcu
+  # Backup file
+  cp "$CONFDIR/registrymodifications.xcu" ./registrymods-unformatted.xcu || echo "ERROR copying config file." && exit
 
-### Extract theme part
+  # Format the file
+  xmllint --format registrymods-unformatted.xcu >registrymods.xcu && rm -f registrymods-unformatted.xcu || echo "ERROR linting the XML file. This is required. Install xmllint or open an issue." && exit
 
-awk '/<item oor:path="\/org.openoffice.Office.UI\/ColorScheme\/ColorSchemes">/,/<\/item>/' registrymods.xcu >colorscheme.xcu
+  # Extract theme part
+  awk '/<item oor:path="\/org.openoffice.Office.UI\/ColorScheme\/ColorSchemes">/,/<\/item>/' registrymods.xcu >colorscheme-raw.xcu || echo "ERROR extracting theme parts from config." && exit
+
+  # check if multiple themes are in that config
+  if [ "$(wc -l < colorscheme-raw.xcu)" -gt 900 ];
+
+    # count how many themes there are
+    COUNTDOWN=$(grep -c '<item oor:path="/org.openoffice.Office.UI/ColorScheme/ColorSchemes">' colorscheme-raw.xcu) && echo "You have $COUNTDOWN themes in that config file."
+
+    # Loop until all themes are separated
+    while [ "$COUNTDOWN" -gt 1 ]; do
+
+        # Separate all themes but the first to a separate file
+        awk '/<item oor:path="\/org.openoffice.Office.UI\/ColorScheme\/ColorSchemes">/{found=1} found' colorscheme-raw.xcu > "colorscheme-$COUNT.xcu" && echo "Theme $COUNT saved in as 'colorscheme-$COUNT.xcu'."
+
+        # Decrement COUNTDOWN
+        COUNTDOWN=$((COUNTDOWN - 1))
+
+        # Increment COUNT
+        COUNT=$((COUNT + 1))
+    done
+    echo "All themes were saved in separate theme config files."
+
+  fi
+
+fi
 
 ### Change lines
-sed -i '/item/d' colorscheme.xcu
+sed -i '/item/d' colorscheme-raw.xcu || echo "ERROR deleting lines containing 'item'" && exit
 
 sed -i '1i\
 <?xml version="1.0" encoding="UTF-8"?>\
@@ -71,9 +145,9 @@ sed -i '1i\
   xmlns:install="http://openoffice.org/2004/installation" oor:name="UI"\
   oor:package="org.openoffice.Office">\
   <node oor:name="ColorScheme">\
-    <node oor:name="ColorSchemes">' colorscheme.xcu
+    <node oor:name="ColorSchemes">' colorscheme-raw.xcu || echo "ERROR adding header lines to the file" && exit
 
-cat >>colorscheme.xcu <<EOF
+cat >>colorscheme-raw.xcu <<EOF || echo "ERROR adding lines to the end of the file" && exit
     <prop oor:name="CurrentColorScheme">
       <value>$THEMENAME</value>
     </prop>
@@ -83,14 +157,14 @@ EOF
 
 ### Format again
 
-xmllint --format colorscheme.xcu >"$THEMENAME/Theme.xcu" && rm -f colorscheme.xcu
+xmllint --format colorscheme-raw.xcu >"$THEMENAME/Theme.xcu" && rm -f colorscheme-raw.xcu || echo "ERROR linting the file"
 
 ### Set author, name, date
 
-[ -n "$AUTHOR" ] && find "$THEMENAME" -type f -exec sed -i 's/AUTHOR/\$AUTHOR/g' {} +
-[ -n "$THEMENAME" ] && find "$THEMENAME" -type f -exec sed -i 's/THEMENAME/\$THEMENAME/g' {} +
-[ -n "$DATE" ] && find "$THEMENAME" -type f -exec sed -i 's/DATE/\$DATE/g' {} +
-[ -n "$WEBSITE" ] && find "$THEMENAME" -type f -exec sed -i 's/WEBSITE/\$WEBSITE/g' {} +
+[ -n "$AUTHOR" ] && find "$THEMENAME" -type f -exec sed -i 's/AUTHOR/\$AUTHOR/g' {} + || echo "No author name set, leaving placeholder."
+[ -n "$THEMENAME" ] && find "$THEMENAME" -type f -exec sed -i 's/THEMENAME/\$THEMENAME/g' {} + || echo "No theme name set, leaving placeholder."
+[ -n "$DATE" ] && find "$THEMENAME" -type f -exec sed -i 's/DATE/\$DATE/g' {} + || echo "No date set, leaving placeholder."
+[ -n "$WEBSITE" ] && find "$THEMENAME" -type f -exec sed -i 's/WEBSITE/\$WEBSITE/g' {} + || echo "No website set, leaving placeholder."
 
 ### Set License
 
@@ -136,11 +210,11 @@ esac
 echo "Enter a description for your theme (Press Ctrl+D to save):"
 
 # Read multiple lines of input until EOF (Ctrl+D)
-cat >"$THEMENAME/pkg-description/pkg-description.en"
+cat >"$THEMENAME/pkg-description/pkg-description.en" || echo "ERROR writing description." && exit
 
 cat "$THEMENAME/pkg-description/pkg-description.en" >>"$THEMENAME/README.md"
 
-cat >>"$THEMENAME/README.md" <<EOF
+cat >>"$THEMENAME/README.md" <<EOF || echo "ERROR writing README." && exit
 
 ## Gallery
 
@@ -165,7 +239,3 @@ Replace .zip with .oxt
 And your extension is ready!
 
 EOF
-
-sleep 5
-
-xdg-open $THEMENAME
