@@ -83,11 +83,11 @@ EOF
 
 ### Format again
 
-xmllint --format colorscheme.xcu >"$THEMEDIR/Theme.xcu" && rm -f colorscheme.xcu
+xmllint --format colorscheme.xcu >"$THEMENAME/Theme.xcu" && rm -f colorscheme.xcu
 
 ### Set author, name, date
 
-[ -n "$AUTHOR" ] && find "$THEMEDIR" -type f -exec sed -i 's/AUTHOR/\$AUTHOR/g' {} +
+[ -n "$AUTHOR" ] && find "$THEMENAME" -type f -exec sed -i 's/AUTHOR/\$AUTHOR/g' {} +
 [ -n "$THEMENAME" ] && find "$THEMEDIR" -type f -exec sed -i 's/THEMENAME/\$THEMENAME/g' {} +
 [ -n "$DATE" ] && find "$THEMEDIR" -type f -exec sed -i 's/DATE/\$DATE/g' {} +
 [ -n "$WEBSITE" ] && find "$THEMEDIR" -type f -exec sed -i 's/WEBSITE/\$WEBSITE/g' {} +
